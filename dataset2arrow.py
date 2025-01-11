@@ -183,7 +183,8 @@ class Sampler:
 @click.option("-s", "--sample", type=(str, int),
               help="`--sample shelfmark 1000` will ensure you don't have more "
                    "than 1000 rows with the same manuscript value per split")
-def cli(dataset, output, max_height, filters, verbose, sample):
+@click.option("-l", "--local", default=False, is_flag=True, help="will load local parquet files (for dev purpose)")
+def cli(dataset, output, max_height, filters, verbose, sample, local):#, datasplit):
     """ Convert [DATASET] into [OUTPUT], a Kraken arrow file. You can use filters such as
     `python dataset2arrow.py CATMuS/medieval-sample latin-9th-century.arrow --filters language=Latin --filters century=9`
 
@@ -194,7 +195,11 @@ def cli(dataset, output, max_height, filters, verbose, sample):
     if verbose:
         logger.setLevel(logging.INFO)
 
-    d: DatasetDict = load_dataset(dataset)
+    if local:
+        d: DatasetDict = load_dataset("parquet", data_dir=dataset)
+    else:
+        d: DatasetDict = load_dataset(dataset)
+
     for key, value in filters:
         if value.isnumeric():
             value = int(value)
