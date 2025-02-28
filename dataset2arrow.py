@@ -29,7 +29,7 @@ def resize_image(row, max_height: int = 120):
         row['im'] = resized_image
     return row
 
-def build_arrow(dataset: DatasetDict, output_file: str = "filtered.arrow", recordbatch_size: int = 100):
+def build_arrow(dataset: DatasetDict, output_file: str = "filtered.arrow", recordbatch_size: int = 100, text_col='text'):
     """ Builds an arrow for Kraken using a DatasetDict
 
     :param dataset: A dataset loaded through load_dataset from one of our repository
@@ -41,7 +41,7 @@ def build_arrow(dataset: DatasetDict, output_file: str = "filtered.arrow", recor
     alphabet = Counter()
     num_lines = 0
     for split in dataset:
-        for row in dataset[split]["text"]:
+        for row in dataset[split][text_col]:
             alphabet.update(row)
             num_lines += 1
 
@@ -98,7 +98,7 @@ def build_arrow(dataset: DatasetDict, output_file: str = "filtered.arrow", recor
                     for row in dataset[split]:
                         fp = io.BytesIO()
                         row["im"].save(fp, format='png')
-                        line_cache.append({"text": row["text"], "im": fp.getvalue()})  # Check format of row
+                        line_cache.append({"text": row[text_col], "im": fp.getvalue()})  # Check format of row
                         if len(line_cache) == recordbatch_size:
                             logger.debug(f'Flushing {len(line_cache)} lines into {tmp_file}.')
                             rbatch, counts = _make_record_batch(line_cache, target=split)
@@ -183,8 +183,10 @@ class Sampler:
 @click.option("-s", "--sample", type=(str, int),
               help="`--sample shelfmark 1000` will ensure you don't have more "
                    "than 1000 rows with the same manuscript value per split")
+@click.option("--col", type=str, default='text', help="--col specifies the name of "
+                "the column to use to extract labels (default is 'text')")
 @click.option("-l", "--local", default=False, is_flag=True, help="will load local parquet files (for dev purpose)")
-def cli(dataset, output, max_height, filters, verbose, sample, local):#, datasplit):
+def cli(dataset, output, max_height, filters, verbose, sample, local, col):#, datasplit):
     """ Convert [DATASET] into [OUTPUT], a Kraken arrow file. You can use filters such as
     `python dataset2arrow.py CATMuS/medieval-sample latin-9th-century.arrow --filters language=Latin --filters century=9`
 
@@ -214,7 +216,7 @@ def cli(dataset, output, max_height, filters, verbose, sample, local):#, dataspl
                 sampler.pretty_print()
             sampler.reset()
 
-    build_arrow(d, output_file=output)
+    build_arrow(d, output_file=output, text_col=col)
 
 
 if __name__ == "__main__":
